@@ -11,6 +11,6 @@
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "openai": "^4.18.0",
-    "@pinecone-database/pinecone": "^0.2.3"
+    "@pinecone-database/pinecone": "^6.0.0"
   }
 }
