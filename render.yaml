@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: telegram-bot
+    env: node
+    plan: free
+    region: oregon
+    buildCommand: 'npm install'
+    startCommand: 'node telegram-bot.js'
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        value: your-telegram-bot-token-here
+      - key: OPENAI_API_KEY
+        value: your-openai-api-key-here
+      - key: PINECONE_API_KEY
+        value: your-pinecone-api-key-here
+      - key: PINECONE_INDEX_NAME
+        value: your-index-name-here
