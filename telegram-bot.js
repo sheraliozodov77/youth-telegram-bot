@@ -1,38 +1,31 @@
-const express = require('express');
-const axios = require('axios');
-const { OpenAI } = require('openai');
-const { Pinecone } = require('@pinecone-database/pinecone');
-require('dotenv').config();
+import express from 'express';
+import axios from 'axios';
+import dotenv from 'dotenv';
+import { OpenAI } from 'openai';
+import { Pinecone } from '@pinecone-database/pinecone';
+
+dotenv.config();
 
 const app = express();
 app.use(express.json());
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
-const index = pinecone.Index(process.env.PINECONE_INDEX_NAME);
-
-const processedMessages = new Set();
+const index = pinecone.index(process.env.PINECONE_INDEX_NAME);
 
 app.post('/telegram', async (req, res) => {
   try {
-    const messageId = req.body?.message?.message_id;
     const message = req.body?.message?.text;
     const chatId = req.body?.message?.chat?.id;
-
-    if (!message || !chatId || !messageId) return res.sendStatus(200);
-    if (processedMessages.has(messageId)) return res.sendStatus(200);
-    processedMessages.add(messageId);
-    setTimeout(() => processedMessages.delete(messageId), 60 * 1000);
+    if (!message || !chatId) return res.sendStatus(200);
 
     let replyText = '';
 
-    if (message.trim() === '/start') {
-      replyText = '👋 Assalomu alaykum! Men Yoshlar ishlari agentligi uchun mo‘ljallangan yordamchi chatbotman. Savolingizni yozing — men siz uchun kerakli ma’lumotlarni 🔍 topishga harakat qilaman.';
-    } else if (message.trim() === '/help') {
-      replyText = `🧠 Misol uchun, quyidagicha savollarni berishingiz mumkin:\n\n• Yoshlar agentligida ishga qanday kiriladi?\n• Agentlik qanday loyihalarni qo‘llab-quvvatlaydi?\n• Qanday hujjatlar kerak?\n\nYozing, men yordam berishga tayyorman.`;
+    if (message === '/start') {
+      replyText = '👋 Salom! Savolingizni yuboring — men sizga yordam berishga harakat qilaman.';
     } else {
       const embeddingRes = await openai.embeddings.create({
-        model: 'text-embedding-3-large',
+        model: 'text-embedding-3-small',
         input: message,
       });
 
@@ -40,11 +33,11 @@ app.post('/telegram', async (req, res) => {
 
       const results = await index.query({
         vector,
-        topK: 8,
+        topK: 5,
         includeMetadata: true,
       });
 
-      const context = results.matches.map((m) => m.metadata?.text || '').join('\n\n');
+      const context = results.matches.map(m => m.metadata?.text || '').join('\n\n');
 
       const chatRes = await openai.chat.completions.create({
         model: 'gpt-4-turbo',
@@ -52,7 +45,7 @@ app.post('/telegram', async (req, res) => {
           {
             role: 'system',
             content:
-              "Foydalanuvchining savoliga pastdagi kontekstdan foydalanib o‘zbek tilida aniq, foydali va tushunarli javob ber. Faqat kontekstdagi ma’lumotlarga tayangan holda javob ber. Agar savolga bevosita javob topilmasa, tegishli kontekstdan foydalangan holda tushuntir. Agar hech qanday mos ma’lumot topilmasa, iltimos bilan: \"Kechirasiz, kontekstda ushbu savolga oid ma’lumot topilmadi.\" deb javob qaytar.",
+              'Pastdagi kontekstdan foydalanib foydalanuvchining savoliga o‘zbek tilida aniq va foydali javob yozing. Agar kontekstda javob topilmasa, "Kechirasiz, bu haqda aniq ma’lumot topilmadi" deb yozing.',
           },
           {
             role: 'user',
@@ -73,12 +66,10 @@ app.post('/telegram', async (req, res) => {
     res.sendStatus(200);
   } catch (err) {
     console.error('❌ Error:', err.message);
-    if (req.body?.message?.chat?.id) {
-      await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-        chat_id: req.body.message.chat.id,
-        text: '❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring.',
-      });
-    }
+    await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      chat_id: req.body?.message?.chat?.id,
+      text: '❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring.',
+    });
     res.sendStatus(500);
   }
 });
