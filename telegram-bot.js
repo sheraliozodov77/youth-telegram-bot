@@ -25,7 +25,7 @@ app.post('/telegram', async (req, res) => {
       replyText = '👋 Salom! Savolingizni yuboring — men sizga yordam berishga harakat qilaman.';
     } else {
       const embeddingRes = await openai.embeddings.create({
-        model: 'text-embedding-3-small',
+        model: 'text-embedding-3-large',
         input: message,
       });
 
